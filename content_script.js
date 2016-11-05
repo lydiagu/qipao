@@ -1,4 +1,4 @@
-// (function() {
+(function() {
 
   console.log('Running content script');
 
@@ -212,4 +212,4 @@
     find_similar_tags($(this));
   });
 
-// })()
+})()
