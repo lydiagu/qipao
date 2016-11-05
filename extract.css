@@ -1,0 +1,70 @@
+.qipaoify {
+  background: orange;
+}
+
+.qipao-selected {
+  background: yellow;
+}
+
+.qipao-selected-in {
+  background: blue;
+}
+
+.accept-highlight {
+  background: url('chrome-extension://__MSG_@@extension_id__/icon-highlight-accept.svg');
+}
+
+.reject-highlight {
+  background: url('chrome-extension://__MSG_@@extension_id__/icon-highlight-reject.svg');
+}
+
+.highlight-button {
+  /* position: absolute; */
+  display: inline-block;
+  height: 12px;
+  width: 12px;
+  background-size: 12px 12px;
+  margin-left: 4px;
+  /* margin-top: 5px; */
+}
+
+.highlight-box {
+  position: absolute;
+  background: yellow;
+  height: 22px;
+  padding: 0 0 0 4px;
+}
+
+#qipao-toolbar {
+  min-height: 70px;
+  background: #eee;
+  font-family: sans-serif;
+  font-size: 14px;
+}
+
+.qipao-btn {
+  height: 35px;
+  border: 1px;
+  margin: 2px 5px;
+  background: white;
+  padding: 5px 10px;
+  border: 1px solid transparent;
+  border-color: #ccc;
+  border-radius: 4px;
+}
+
+#qipao-property-name {
+  height: 35px;
+  width: 150px;
+  font-family: sans-serif;
+  font-size: 14px;
+  border: 1px solid transparent;
+  border-color: #ccc;
+  border-radius: 4px;
+  float: left;
+  margin: 2px 5px;
+}
+
+#qipao-properties {
+  margin: 5px 5px;
+}
