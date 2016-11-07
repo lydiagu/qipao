@@ -37,16 +37,23 @@
       console.log(original[i], out_selection[i]);
       if (original[i][0] != out_selection[i][0] ||
           original[i][1] != out_selection[i][1]) {
-        // If i is less than length of pattern, add index.
         if (i < pattern.length) {
+          console.log('within pattern')
+          // If i is less than length of pattern, only index could have been
+          // mismatched.
           pattern[i][1] = original[i][1];
         } else if (original[i][0] != out_selection[i][0]) {
-          // Check if tags are mismatched.
+          // If i is greater than length of pattern and tags are mismatched,
+          // add tags from length of pattern to i.
+          console.log('greater than pattern tag mismatch');
           for (var j = pattern.length; j <= i; j++) {
             pattern.push([original[j][0], null]);
           }
         } else if (original[i][1] != out_selection[i][1]) {
+          // If i is greater than length of pattern and indices are mismatched,
+          // add tags from length of pattern to i and add index for i.
           // Indices are mismatched.
+          console.log('greater than pattern index mismatch')
           for (var j = pattern.length; j <= i; j++) {
             pattern.push([original[j][0], null]);
           }
@@ -69,18 +76,24 @@
     console.log(out_selection[0].join(' '));
     for (var i = 0; i < in_selection.length; i++) {
       console.log(original[i], out_selection[i]);
-      if (original[i][0] != out_selection[i][0] ||
-          original[i][1] != out_selection[i][1]) {
+      // TODO(lydia): why would tag names not match?
+      // if (original[i][0] != out_selection[i][0] ||
+      // original[i][1] != out_selection[i][1]) {
+      if (original[i][0] != out_selection[i][0]) {
+        in_selection = in_selection.slice(0, i);
+        break;
+      }
+      else if (original[i][1] != out_selection[i][1]) {
         // If i is less than length of pattern, remove index.
         in_selection[i][1] = null;
-        break;
+        // break;
       }
     }
     var selector = create_jquery_selector(in_selection);
     console.log('new selector', selector);
     $(selector).removeClass('qipao-selected')
       .each(function() {
-        // High accept/reject boxes.
+        // Hide accept/reject boxes.
         var qipaoid = $(this).attr("qipao-id");
         $('#qipao-'+qipaoid).css('display', 'None');
       });
@@ -92,7 +105,9 @@
     var tags = []
     tagName = element.prop("tagName");
     element.parents().each(function() {
-      tags.push([$(this).prop("tagName"), $(this).index()]);
+      if ($(this).prop("tagName") !== 'HTML') {
+        tags.push([$(this).prop("tagName"), $(this).index()]);
+      }
     });
     tags.unshift([tagName, element.index()]);
     return tags;
@@ -111,7 +126,7 @@
     }
     current_selector = create_jquery_selector(pattern);
     console.log('selector', current_selector);
-    in_selection = original.slice(0,4);
+    in_selection = original.slice(0,6);
     console.log('in selection', in_selection);
 
     // Highlight siblings
@@ -149,6 +164,9 @@
 
   };
 
+  ////////////
+  // Set up //
+  ////////////
   // Add toolbar.
   $("body").prepend('<div id="qipao-toolbar"><input id="qipao-property-name" type="text" placeholder="property name"></input><button class="new-button qipao-btn">New</button><button class="done-button qipao-btn">Done</button><button class="send-button qipao-btn">Send Data</button><div id="qipao-properties"><div>Saved Properties:</div><div id="qipao-properties-list"></div></div></div>');
 
@@ -187,29 +205,37 @@
     }
   });
 
-  // Replace all links.
+  // Replace all links so you can select links without navigating to the linked
+  // url.
   $("a").each(function() {
     var link = $(this).attr('href');
     $(this).attr('qipaohref', link);
     $(this).removeAttr('href');
   });
 
-  $("body *").not('#qipao-toolbar *').filter(function()
-  {
-    var $this = $(this);
-    return $this.children().length == 0 && $.trim($this.text()).length > 0;
-  })
-  .hover(
-    function() {
-      $(this).addClass('qipaoify');
-    }, function() {
-      $(this).removeClass('qipaoify');
-    }
-  )
-  .click(function() {
-    $(this).off("click");
-    $(this).off("hover");
-    find_similar_tags($(this));
-  });
+  // Find all text elements, add add ability to highlight/select them.
+  $("body *").not('#qipao-toolbar *')
+    .filter(function() {
+      var $this = $(this);
+      // TODO(lydia): How do we handle <p>'s that have <br> or <a> or other
+      // tags in them?
+      // return $this.children().length == 0 && $.trim($this.text()).length > 0;
+      return $.trim($this.text()).length > 0 && (
+        $this.prop("tagName") === 'P' || $this.children().length == 0);
+    })
+    .hover(
+      function() {
+        $(this).addClass('qipaoify');
+      }, function() {
+        $(this).removeClass('qipaoify');
+      }
+    )
+    .click(function() {
+      // TODO(lydia): Remove hover from all elements? Because why should it
+      // still show qipaoify highlight when you're in find similar tag state?
+      $(this).off("click");
+      $(this).off("hover");
+      find_similar_tags($(this));
+    });
 
 })()
