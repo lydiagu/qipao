@@ -164,6 +164,194 @@
 
   };
 
+  var clusterMaxDist = 100;
+
+  var cluster = function(items) {
+    var clusters = [[items[0]]];
+    for (var i=1; i < items.length; i++) {
+      var added = false;
+      for (var j=0; j < clusters.length; j++) {
+        if (Math.abs(items[i][0] - clusters[j][0][0]) < clusterMaxDist) {
+          added = true;
+          clusters[j].push(items[i]);
+          break;
+        }
+      }
+      if (!added) {
+        // create new cluster with item;
+        clusters.push([items[i]]);
+      }
+    }
+    return clusters;
+  }
+
+  ///////// Code Written for Hackathon /////////
+  var getBiggestCluster = function(clusters) {
+    var clusterSizes = [];
+    clusters.forEach(function(cluster) {
+      clusterSizes.push(cluster.length);
+    });
+    var max = Math.max.apply(null, clusterSizes);
+    var index = clusterSizes.indexOf(max);
+    return clusters[index];
+  }
+
+  var clusterElements = function(elements) {
+    // Navs are usually aligned either by x or y axis.
+    var elementsWithOffset = [];
+    elements.forEach(function(element) {
+      var offset = $(element).offset();
+      elementsWithOffset.push([offset.top, offset.left, element])
+    });
+
+    // Cluster by height
+    var heights = [];
+    elementsWithOffset.forEach(function(val) {
+      heights.push([val[0], val[2]]);
+    });
+    var clustersByHeight = cluster(heights);
+    // console.log('cluster by height', clustersByHeight)
+
+    // Cluster by width
+    var widths = [];
+    elementsWithOffset.forEach(function(val) {
+      widths.push([val[1], val[2]]);
+    });
+    var clustersByWidth = cluster(widths);
+    // console.log('cluster by width', clustersByWidth)
+
+    return getBiggestCluster(clustersByWidth.concat(clustersByHeight));
+  };
+
+  var create_jquery_selector_with_class = function(descriptors) {
+    // Create jquery selector using tag, index (optional), class
+    // name (optional) and visible selector.
+    var selector = [];
+    for (var i = descriptors.length - 1; i >= 0; i--) {
+      var subSelector = descriptors[i][0];
+      if (descriptors[i][1] != null) {
+        // nth-child() selector is 1-indexed.
+        subSelector += ':nth-child(' + (descriptors[i][1] + 1) + ')';
+      }
+      if (descriptors[i][2]) {
+        subSelector += '.' + descriptors[i][2];
+      }
+      subSelector += ':visible'; // filter for visible elements
+      selector.push(subSelector);
+    }
+    // Each tag must be direct child of previous tag.
+    return selector.join(' > ');
+  };
+
+  var get_selector_list_with_class = function(element) {
+    // Returns list of (tagName, index, class) for element and all its parents.
+    var tags = []
+    tagName = element.prop("tagName");
+    element.parents().each(function() {
+      if ($(this).prop("tagName") !== 'HTML') {
+        var classes = $(this).attr('class');
+        if (classes === undefined) {
+          classes = '';
+        }
+        tags.push([$(this).prop("tagName"), $(this).index(),
+                   classes.split(' ')[0]]);
+      }
+    });
+    tags.unshift([tagName, element.index()]);
+    return tags;
+  };
+
+  var getText = function(element) {
+    var text = $(element).text();
+    text = text.replace(/\n/g,'');
+    text = $.trim(text);
+    // console.log('text', text);
+    return text;
+  }
+
+  var find_nav = function(element) {
+    var pageHeight = $(document).height();
+    var used_selectors = {};
+    $('a').each(function() {
+      var tags = get_selector_list_with_class($(this));
+      original = tags.slice(0);
+
+      // By default, start with 4 levels.
+      pattern = [];
+      var max_levels = Math.min(original.length, 4);
+      for (var i = 0; i < max_levels; i++) {
+        if (original[i][0] === 'UL') {
+          // add index and class
+          pattern.push([original[i][0], original[i][1], original[i][2]]);
+        } else if (original[i][0] === 'LI') {
+          pattern.push([original[i][0], null, null]);
+        } else {
+          pattern.push([original[i][0], null, original[i][2]]);  // add class
+        }
+      }
+      current_selector = create_jquery_selector_with_class(pattern);
+
+      // Don't repeat selectors.
+      if (used_selectors[current_selector] !== undefined) {
+        return;
+      } else {
+        used_selectors[current_selector] = 1;
+      }
+      console.log('selector', current_selector);
+
+      // Print itself and siblings.
+      var found = $(current_selector);
+      // console.log('found', found);
+      if (!found.length) {
+        return;
+      }
+
+      // Remove elements that don't contain text, or contain only numbers.
+      var titles = [];
+      var filteredFound = [];
+      found.each(function(index, element) {
+        // TODO(lydia): Element itself might not be hidden. Parent might
+        // be hidden. Also nested navs are hidden.
+        // if ($(element).css('display') === 'none') {
+        //   // check for hidden elements. skip if hidden
+        //   // what about nested navs?
+        //   return;
+        // }
+        var text = getText(element);
+        if (text.length > 0 && isNaN(parseInt(text))) {
+          if (titles.indexOf(text) === -1) {
+            titles.push(text);
+            filteredFound.push(element);
+          }
+        }
+      });
+
+      // Cluster elements by height and width;
+      var cluster = clusterElements(filteredFound);
+      titles = [];
+      cluster.forEach(function(element) {
+        titles.push(getText(element));
+      });
+
+      // Skip if less than 3 unique titles.
+      if (titles.length <= 2) {
+        return;
+      }
+
+      // Check position of found elements.
+      var position = $(filteredFound[0]).offset();
+      if (position.top < 300) {
+        console.log('header');
+      } else if (position.top > pageHeight - 300) {
+        console.log('footer');
+      }
+      console.log(titles);
+
+    });
+  };
+  ///////// Code Written for Hackathon /////////
+
+
   ////////////
   // Set up //
   ////////////
@@ -237,5 +425,7 @@
       $(this).off("hover");
       find_similar_tags($(this));
     });
+
+  find_nav();
 
 })()
