@@ -349,6 +349,151 @@
 
     });
   };
+
+  var findCommonAncestor = function(ele, ele2) {
+    var parents = $(ele).parents();
+    var parents2 = $(ele2).parents();
+    var i = 0;
+    while (parents.get(i) != parents2.get(i)) {
+      i++;
+      if (i > parents.length || i > parents2.length || i > 5) {
+        break;
+      }
+    }
+    if (parents.get(i) == parents2.get(i)) {
+      return parents.get(i);
+    } else {
+      return null;
+    }
+  };
+
+  var isAncestor = function(ancestor, ele) {
+    var parents = $(ele).parents();
+    var i = 0;
+    while (i < parents.length) {
+      if (parents.get(i) == ancestor) {
+        return true;
+      }
+      i++;
+    }
+    return false;
+  };
+
+  var findPatterns = function() {
+    var used_selectors = {};
+    var images = $('img');
+    images.each(function() {
+      var tags = get_selector_list_with_class($(this));
+      original = tags.slice(0);
+
+      // By default, start with 4 levels.
+      pattern = [];
+      var max_levels = Math.min(original.length, 4);
+      for (var i = 0; i < max_levels; i++) {
+        if (original[i][0] === 'UL') {
+          // add index and class
+          pattern.push([original[i][0], original[i][1], original[i][2]]);
+        } else if (original[i][0] === 'LI') {
+          pattern.push([original[i][0], null, null]);
+        } else {
+          pattern.push([original[i][0], null, original[i][2]]);  // add class
+        }
+      }
+      current_selector = create_jquery_selector_with_class(pattern);
+
+      // Don't repeat selectors.
+      if (used_selectors[current_selector] !== undefined) {
+        return;
+      } else {
+        used_selectors[current_selector] = 1;
+      }
+      console.log('selector', current_selector);
+
+      var found = $(current_selector);
+      console.log('found', found);
+      if (!found.length) {
+        return;
+      }
+
+      // Compare all pairs in `found`, find common ancestor. `common` is a list
+      // of tuple of ancestor and members of `found` with that ancestor.
+      // ex. [[ancestor, [ele1, ele2]], [ancestor2, [ele3, ele4]]]
+      var common = [];
+      for (var i = 0; i < found.length - 1; i++) {
+        var ele = found.get(i);
+        var ele2;
+        for (var j = i + 1; j < found.length; j++) {
+          ele2 = found.get(j);
+          var ancestor = findCommonAncestor(ele, ele2);
+          if (!ancestor) {
+            continue;
+          }
+          var added = false;
+          for (var k = 0; k < common.length; k++) {
+            if (common[k][0] == ancestor) {
+              // Ancestors match, add elements to list.
+              if (common[k][1].indexOf(ele) === -1) {
+                common[k][1].push(ele);
+              }
+              if (common[k][1].indexOf(ele2) === -1) {
+                common[k][1].push(ele2);
+              }
+              added = true;
+            }
+            if (isAncestor(common[k][0], ele)) {
+              // Add to list if is ancestor of ele.
+              if (common[k][1].indexOf(ele) === -1) {
+                common[k][1].push(ele);
+              }
+            }
+            if (isAncestor(common[k][0], ele2)) {
+              // Add to list if is ancestor of ele.
+              if (common[k][1].indexOf(ele2) === -1) {
+                common[k][1].push(ele2);
+              }
+            }
+          }
+          if (!added) {
+            common.push([ancestor, [ele, ele2]]);
+          }
+        }
+      }
+
+      console.log('-----------------------NEW SELECTOR-----------------------');
+      for (var i = 0; i < common.length; i++) {
+        console.log('-----------------------GROUPING-----------------------');
+        console.log(common[i]);
+        var ancestor = common[i][0];
+        var children = [];
+        common[i][1].forEach(function(ele) {
+          console.log('-----------------------CHILD-----------------------');
+          // Go over each element which has ancestor as ancestor.
+          var child = ele;
+          var i = 0;
+          while ($(child).parent()[0] != ancestor && i < 10) {
+            child = $(child).parent()[0];
+            i++;
+          }
+          if (children.indexOf(child) !== -1) {
+            return;
+          }
+          console.log(child);
+          children.push(child);
+          // TODO(lydia): Get more context for text, etc. to use in
+          // classification.
+          if (child.tagName == 'IMG') {
+            console.log($(child).attr('src'));
+          } else {
+            var imgs = $(child).find('img');
+            imgs.each(function(i, e) {
+              console.log($(e).attr('src'))
+            });
+          }
+          console.log($(child).text());
+        });
+      }
+    });
+  };
   ///////// Code Written for Hackathon /////////
 
 
@@ -426,6 +571,7 @@
       find_similar_tags($(this));
     });
 
-  find_nav();
+  // find_nav();
+  findPatterns();
 
 })()
