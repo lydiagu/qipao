@@ -164,6 +164,7 @@
 
   };
 
+  ///////// Code Written for Hackathon /////////
   var clusterMaxDist = 100;
 
   var cluster = function(items) {
@@ -185,7 +186,6 @@
     return clusters;
   }
 
-  ///////// Code Written for Hackathon /////////
   var getBiggestCluster = function(clusters) {
     var clusterSizes = [];
     clusters.forEach(function(cluster) {
@@ -297,7 +297,7 @@
       } else {
         used_selectors[current_selector] = 1;
       }
-      console.log('selector', current_selector);
+      // console.log('selector', current_selector);
 
       // Print itself and siblings.
       var found = $(current_selector);
@@ -342,10 +342,11 @@
       var position = $(filteredFound[0]).offset();
       if (position.top < 300) {
         console.log('header');
+        console.log('nav', titles);
       } else if (position.top > pageHeight - 300) {
         console.log('footer');
+        console.log('nav', titles);
       }
-      console.log(titles);
 
     });
   };
@@ -368,6 +369,9 @@
   };
 
   var isAncestor = function(ancestor, ele) {
+    if (ancestor == ele) {
+      return false;
+    }
     var parents = $(ele).parents();
     var i = 0;
     while (i < parents.length) {
@@ -378,6 +382,78 @@
     }
     return false;
   };
+
+  var findDirectChildContainingElement = function(ancestor, ele) {
+    // Find direct child of `ancestor` that contains ele.
+    var parents = $(ele).parents();
+    var child = ele;
+    if (!isAncestor(ancestor, ele)) {
+      return null;
+    }
+    while ($(child).parent()[0] != ancestor) {
+      child = $(child).parent()[0];
+    }
+    return child;
+  };
+
+  var getData = function(ele, div) {
+    // TODO(lydia): Get more context for text, etc. to use in classification.
+    if (ele.tagName == 'IMG') {
+      var src = $(ele).attr('src');
+      // console.log($(ele).attr('src'));
+      div.append('<img src="' + src + '">');
+    } else {
+      var imgs = $(ele).find('img');
+      imgs.each(function(i, e) {
+        var src = $(e).attr('src');
+        div.append('<img src="' + src + '">');
+        // console.log($(e).attr('src'));
+      });
+    }
+    // console.log($(ele).text());
+    div.append('<div>' + $(ele).text() + '</div>');
+  };
+
+  var groupByAncestor = function (feature, found) {
+    // Compare all pairs in `found`, find common ancestor. `common` is a list
+    // of tuple of ancestor and direct children containing members of  `found`.
+    // ex. [[ancestor, [child1, child22]], [ancestor2, [child3, child4]]]
+    var common = [];
+    for (var i = 0; i < found.length - 1; i++) {
+      var ele = found[i].element;
+      var ele2;
+      for (var j = i + 1; j < found.length; j++) {
+        ele2 = found[j].element;
+        var ancestor = findCommonAncestor(ele, ele2);
+        if (!ancestor) {
+          continue;
+        }
+        var branch1 = findDirectChildContainingElement(ancestor, ele);
+        var branch2 = findDirectChildContainingElement(ancestor, ele2);
+        var added = false;
+        for (var k = 0; k < common.length; k++) {
+          if (common[k][0] == ancestor) {
+            // Ancestors match, add branches to list.
+            if (common[k][1].indexOf(branch1) === -1) {
+              common[k][1].push(branch1);
+            }
+            if (common[k][1].indexOf(branch2) === -1) {
+              common[k][1].push(branch2);
+            }
+            added = true;
+          }
+        }
+        if (!added) {
+          var newGrouping = [ancestor, [branch1]];
+          if (branch1 != branch2) {
+            newGrouping[1].push(branch2);
+          }
+          common.push(newGrouping);
+        }
+      }
+    }
+    return common;
+  }
 
   var findPatterns = function() {
     var used_selectors = {};
@@ -407,10 +483,10 @@
       } else {
         used_selectors[current_selector] = 1;
       }
-      console.log('selector', current_selector);
+      // console.log('selector', current_selector);
 
       var found = $(current_selector);
-      console.log('found', found);
+      // console.log('found', found);
       if (!found.length) {
         return;
       }
@@ -459,14 +535,11 @@
         }
       }
 
-      console.log('-----------------------NEW SELECTOR-----------------------');
       for (var i = 0; i < common.length; i++) {
-        console.log('-----------------------GROUPING-----------------------');
         console.log(common[i]);
         var ancestor = common[i][0];
         var children = [];
         common[i][1].forEach(function(ele) {
-          console.log('-----------------------CHILD-----------------------');
           // Go over each element which has ancestor as ancestor.
           var child = ele;
           var i = 0;
@@ -477,22 +550,221 @@
           if (children.indexOf(child) !== -1) {
             return;
           }
-          console.log(child);
+          // console.log(child);
           children.push(child);
           // TODO(lydia): Get more context for text, etc. to use in
           // classification.
           if (child.tagName == 'IMG') {
-            console.log($(child).attr('src'));
+            // console.log($(child).attr('src'));
           } else {
             var imgs = $(child).find('img');
             imgs.each(function(i, e) {
-              console.log($(e).attr('src'))
+              // console.log($(e).attr('src'))
             });
           }
-          console.log($(child).text());
+          // console.log($(child).text());
         });
       }
     });
+  };
+
+  var getFeatures = function(ele) {
+    var features = [];
+    if ($(ele).parents().length) {
+      var parent = $(ele).parents().get(0);
+      features.push(parent.tagName);
+      if ($(parent).attr('class') && parent.tagName === 'DIV') {
+        // TODO(lydia): Only add classes for DIV tags.
+        features.push($(parent).attr('class'));
+      }
+    } else {
+      features.push(null);
+    }
+    features.push(ele.tagName);
+    if ($(ele).attr('class') && ele.tagName === 'DIV') {
+      features.push($(ele).attr('class'));
+    }
+    var childrenTags = [];
+    $(ele).children().each(function(index, e) {
+      if (e.tagName === 'SCRIPT' || e.tagName === 'NOSCRIPT') {
+        return;
+      }
+      var cTags = [];
+      // add children tags.
+      $(e).children().each(function(i, e2) {
+        if (cTags.indexOf(e2.tagName) === -1 && e2.tagName !== 'SCRIPT') {
+          cTags.push(e2.tagName);
+        }
+      });
+      var tag = e.tagName + ' ' + cTags.join(' ');
+      if (childrenTags.indexOf(tag) === -1) {
+        childrenTags.push(tag);
+      }
+    });
+    features = features.concat(childrenTags);
+    return features.join(' ');
+  };
+
+  var buildTree = function(root) {
+    root.children =  [];
+    $(root.element).children().each(function(index, ele) {
+      if (ele.tagName !== 'SCRIPT' && ele.tagName !== 'NOSCRIPT') {
+        var node = {
+          element: ele,
+          features: getFeatures(ele)
+        };
+        buildTree(node);
+        root.children.push(node);
+      }
+    });
+  };
+
+  var clusterNodes = function(node, dictionary) {
+    // Cluster nodes by exact match for now.
+    if (dictionary[node.features] == undefined) {
+      dictionary[node.features] = [];
+    }
+    dictionary[node.features].push(node);
+    node.children.forEach(function(child) {
+      clusterNodes(child, dictionary);
+    });
+  };
+
+  var pruneCluster = function(cluster) {
+    // Prune clusters that don't have images or less than 2 in size.
+    var toDelete = [];
+    Object.keys(cluster).forEach(function(val) {
+      if (val.indexOf('IMG') === -1 || cluster[val].length <= 1) {
+        toDelete.push(val);
+      }
+    });
+    toDelete.forEach(function(val) {
+      delete cluster[val];
+    });
+  };
+
+  var intersection = function(a, b) {
+    var c = [];
+    for (var i = 0; i < a.length; i++) {
+      if (b.indexOf(a[i]) !== -1) {
+        c.push(a[i]);
+      }
+    }
+    return c;
+  };
+
+  var union = function(a, b) {
+    var c = a;
+    for (var i = 0; i < b.length; i++) {
+      if (c.indexOf(b[i]) === -1) {
+        c.push(b[i]);
+      }
+    }
+    return c;
+  };
+
+  var addToTree = function(root, node) {
+    var added = false;
+    root.children.forEach(function(val) {
+      if (isAncestor(val.element, node.element)) {
+        addToTree(val, node);
+        added = true;
+      }
+    });
+    if (!added) {
+      root.children.push(node);
+    }
+  };
+
+  var createHierarchy = function(cluster) {
+    var common = [];
+    Object.keys(cluster).forEach(function(val) {
+      var c = groupByAncestor(val, cluster[val]);
+      common = common.concat(c);
+    });
+
+    var deduped = [];
+    // Remove duplicates.
+    for (var i = 0; i < common.length; i++) {
+      var ancestor = common[i][0];
+      var hasAncestor = false;
+      for (var j = 0; j < deduped.length; j++) {
+        var current = deduped[j];
+        if (ancestor == current[0]) {
+          var hasGroup = false;
+          hasAncestor = true;
+          for (var k = 0; k < current[1].length; k++) {
+            if (intersection(current[1][k], common[i][1]).length > 0) {
+              // If there is overlap, add to group.
+              current[1][k] = union(current[1][k], common[i][1]);
+              hasGroup = true;
+              break;
+            }
+          }
+          if (!hasGroup) {
+            current[1].push(common[i][1]);
+          }
+          break;
+        }
+      }
+      if (!hasAncestor) {
+        deduped.push([ancestor, [common[i][1]]]);
+      }
+    }
+    console.log(deduped);
+
+    // Rearrange into a hierarchy.
+    var roots = [];
+    for (var i = 0; i < deduped.length; i++) {
+      var node = {element: deduped[i][0], children: [], members: deduped[i][1]};
+      var added = false;
+      for (var j = 0; j < roots.length; j++) {
+        if (isAncestor(roots[j].element, node.element)) {
+          addToTree(roots[j], node);
+          added = true;
+          break;
+        } else if (isAncestor(node.element, roots[j].element)) {
+          addToTree(node, roots[j]);
+          roots[j] = node;
+          added = true;
+          break;
+        }
+      }
+      if (!added) {
+        roots.push(node);
+      }
+    }
+    console.log(roots);
+
+    return roots;
+  };
+
+  var extractTree = function(node, i, div) {
+    // console.log('LEVEL', i, node.element);
+    if (node.children.length === 0) {
+      node.members.forEach(function(val) {
+        // console.log('GROUPING');
+        div.append($("<h1>New Group</h1>"));
+        var container = $("<div class='demogroup'></div>");
+        val.forEach(function(v) {
+          var itemc = $("<div class='demoitem'></div>");
+          container.append(itemc);
+          getData(v, itemc);
+        });
+        div.append(container);
+        div.append($("<div style='clear:both;'></div>"));
+      });
+    } else {
+      node.children.forEach(function(val) {
+        extractTree(val, i+1, div);
+      });
+    }
+  };
+
+  var extractData = function(hierarchy, div) {
+    for (var i = 0; i < hierarchy.length; i++) {
+      extractTree(hierarchy[i], 0, div);
+    }
   };
   ///////// Code Written for Hackathon /////////
 
@@ -501,7 +773,7 @@
   // Set up //
   ////////////
   // Add toolbar.
-  $("body").prepend('<div id="qipao-toolbar"><input id="qipao-property-name" type="text" placeholder="property name"></input><button class="new-button qipao-btn">New</button><button class="done-button qipao-btn">Done</button><button class="send-button qipao-btn">Send Data</button><div id="qipao-properties"><div>Saved Properties:</div><div id="qipao-properties-list"></div></div></div>');
+  // $("body").prepend('<div id="qipao-toolbar"><input id="qipao-property-name" type="text" placeholder="property name"></input><button class="new-button qipao-btn">New</button><button class="done-button qipao-btn">Done</button><button class="send-button qipao-btn">Send Data</button><div id="qipao-properties"><div>Saved Properties:</div><div id="qipao-properties-list"></div></div></div>');
 
   $('.new-button').click(function() {
     // Reset variables
@@ -571,7 +843,20 @@
       find_similar_tags($(this));
     });
 
-  // find_nav();
-  findPatterns();
+  ///////// Code Written for Hackathon /////////
+  find_nav();
+  // findPatterns();
+  var body = $('body').get(0);
+  var root = {element: body, features: getFeatures(body)}
+  buildTree(root);
+  var clusters = {};
+  clusterNodes(root, clusters);
+  pruneCluster(clusters);
+  var hierarchy = createHierarchy(clusters);
+
+  var div = $('<div id="qipao-toolbar"></div>');
+  extractData(hierarchy, div);
+  $("body").prepend(div);
+  ///////// Code Written for Hackathon /////////
 
 })()

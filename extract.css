@@ -68,3 +68,15 @@
 #qipao-properties {
   margin: 5px 5px;
 }
+
+#qipao-toolbar img {
+  height: 50px;
+}
+
+div.demoitem {
+  position:relative;
+  max-width: 30%;
+  min-width: 100px;
+  float: left;
+  padding-left: 2em;
+}

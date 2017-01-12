@@ -21,5 +21,6 @@
   ],
   "web_accessible_resources": [ "jquery-2.1.3.js",
                                 "icon-highlight-accept.svg",
-                                "icon-highlight-reject.svg" ]
+                                "icon-highlight-reject.svg",
+                                "underscore-min.js"]
 }
